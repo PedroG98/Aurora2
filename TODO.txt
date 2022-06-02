@@ -1,0 +1,13 @@
+Mejorar metodos de files
+Unidades para mas de 1 carga - Hacer adimensionalize virtual?
+Revisar cgs en campos de sinewavesystem
+Adimensionalize wave maybe?
+Constructores de particulas por copia raros
+Condicion para escape para salir de simulacion
+Implementar pasada por plano con cuidado de campo externo
+Problema con ángulo en hasLooped retorna NaN
+Permitir salida de tiempo en transiente
+
+Transiente:  Comparar dt de girofrecuencia con 1/2 -> Paso dinámico
+Estela de puntos. Probar deriva con un giro en ecuador
+Comparar campos B de onda y dipolo
