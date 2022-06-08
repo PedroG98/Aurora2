@@ -19,15 +19,19 @@ class DriftMeasureDevice : public IDynamicObject
         // Stored fields
         vec E, B;
         vec gradB;
+        double L;
 
         // Scale factors
         double driftFactor;
         double frequencyFactor;
 
         // Drift control
+        double totalTime;
         vec totalDrift;
         vec totalExpectedDrift;
+        double totalEpsilon;
 
+        bool valid;
         bool integrating;
         unsigned int loops;     // Claramente no generales al rotar la particula, en torno a z, pero casi constantes dentro de la 2da invariante
         double relativeAngle;
@@ -39,6 +43,7 @@ class DriftMeasureDevice : public IDynamicObject
 
         // Helper methods
         double Kparallel() const;
+        double gyroRadius() const;
         vec expectedDriftVel() const;
 
     public:
@@ -59,7 +64,12 @@ class DriftMeasureDevice : public IDynamicObject
         double gyroFrequency() const;
         double getMeasuredDrift() const;
         double getExpectedDrift() const;
+        double getMeanEpsilon() const;
+
         bool hasLooped() const;
+        bool isValid() const;
+        // Get error
+        double epsilon() const;
 
         // Signals
         void startIntegrating();

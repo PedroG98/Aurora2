@@ -47,6 +47,7 @@ class System
 
         // Utility
         vec gradB(const vec& r, const IDynamicObject* exclude=nullptr) const;
+        double L(const vec& r) const;
 };
 
 

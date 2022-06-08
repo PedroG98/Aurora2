@@ -5,6 +5,7 @@ CONFIG -= qt
 
 SOURCES += \
         Core/DimensionSet.cpp \
+        Core/FiniteDifference.cpp \
         Particles/Particle.cpp \
         Core/System.cpp \
         Core/Vec.cpp \
@@ -18,6 +19,7 @@ SOURCES += \
 HEADERS += \
     Core/CircularBuffer.h \
     Core/DimensionSet.h \
+    Core/FiniteDifference.h \
     Core/IDynamicObject.h \
     Particles/Particle.h \
     Core/System.h \

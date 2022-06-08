@@ -3,7 +3,7 @@
 
 
 ChargeDipoleSystem::ChargeDipoleSystem(const PointCharge& q, const MagneticDipole& m, const std::string& output_dir) :
-    System(output_dir), charge(q), dipole(m), driftDevice(charge, 10)
+    System(output_dir), charge(q), dipole(m), driftDevice(charge, 2)
 {
     objects.push_back(&charge);
     objects.push_back(&dipole);
@@ -20,7 +20,7 @@ ChargeDipoleSystem::ChargeDipoleSystem(const PointCharge& q, const MagneticDipol
     driftData.open(outputDir + "/Drift.dat");
 
     trajectory << "x\ty\tz" << std::endl;
-    driftData << "Expected drift\tMeasured drift\tHorizontal Angle" << std::endl;
+    driftData << "Expected drift\tMeasured drift\tEpsilon" << std::endl;
 }
 
 
@@ -107,7 +107,7 @@ void ChargeDipoleSystem::run(const double total_time, const double step_precisio
         z = charge.getPos().z;
         maxHeight = std::max(maxHeight, std::abs(z));
 
-        writeData(1);
+        //writeData(1);
 
         if (time >= total_tau)
         {
@@ -126,22 +126,21 @@ void ChargeDipoleSystem::run(const double total_time, const double step_precisio
         setFields();
         move(dt);
         time += dt;
-        writeData(1);
+        //writeData(1);
 
         // Drift integration while on 1/4 of maxheight
-        if (!integrating && std::abs(charge.getPos().z) < maxHeight / 4)
+        if (!integrating && std::abs(charge.getPos().z) < maxHeight / 5)
         {
-            std::cout << "Start integration: " << charge.getPos() << std::endl;
             integrating = true;
             driftDevice.startIntegrating();
         }
         // Stop signal
-        if (integrating && std::abs(charge.getPos().z) >= maxHeight / 4 && driftDevice.hasLooped())
+        if (integrating && std::abs(charge.getPos().z) >= maxHeight / 5 && driftDevice.hasLooped())
         {
-            std::cout << "Stop integration: " << charge.getPos() << std::endl;
             integrating = false;
             driftDevice.stopIntegrating();
-            writeData(2);
+            if (driftDevice.isValid())
+                writeData(2);
         }
 
         // Drift integration one loop after
@@ -183,8 +182,7 @@ void ChargeDipoleSystem::writeData(const unsigned int which)
         // Drift
         case 2:
         {
-            // angle stuff
-            driftData << driftDevice.getExpectedDrift() << '\t' << driftDevice.getMeasuredDrift() << '\t' << 0.0 << std::endl;
+            driftData << driftDevice.getExpectedDrift() << '\t' << driftDevice.getMeasuredDrift() << '\t' << driftDevice.getMeanEpsilon() << std::endl;
         }
         break;
     }

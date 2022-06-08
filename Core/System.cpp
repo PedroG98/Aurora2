@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "../Particles/PointCharge.h"
+#include "FiniteDifference.h"
 
 
 // Empty constructor
@@ -49,6 +50,20 @@ vec System::gradB(const vec& r, const IDynamicObject* exclude) const
     By = (B(r + vec(0,e,0), exclude).norm() - B(r - vec(0,e,0), exclude).norm()) / (2*e);
     Bz = (B(r + vec(0,0,e), exclude).norm() - B(r - vec(0,0,e), exclude).norm()) / (2*e);
     return vec(Bx, By, Bz);
+}
+
+double System::L(const vec& r) const
+{
+    auto lnB = [this](const vec& r) { return std::log(B(r).norm()); };
+    const double e = r.norm() * std::cbrt(std::numeric_limits<double>::epsilon());
+
+    // Grad ln B
+    double Lx, Ly, Lz;
+    Lx = (lnB(r + vec(e,0,0)) - lnB(r - vec(e,0,0))) / (2*e);
+    Ly = (lnB(r + vec(0,e,0)) - lnB(r - vec(0,e,0))) / (2*e);
+    Lz = (lnB(r + vec(0,0,e)) - lnB(r - vec(0,0,e))) / (2*e);
+
+    return 1.0 / vec(Lx, Ly, Lz).norm();
 }
 
 

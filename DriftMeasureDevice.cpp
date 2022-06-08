@@ -15,10 +15,14 @@ DriftMeasureDevice::DriftMeasureDevice(const PointCharge& charge, const unsigned
 // Reads fields
 void DriftMeasureDevice::setFields(const System* system)
 {
+    if (!integrating)
+        return;
+
     vec pos = pCharge->getPos();
     E = system->E(pos, pCharge);
     B = system->B(pos, pCharge);
     gradB = system->gradB(pos, pCharge);
+    L = system->L(pos);
 }
 
 
@@ -26,7 +30,7 @@ void DriftMeasureDevice::setFields(const System* system)
 void DriftMeasureDevice::adimensionalize(const DimensionSet& base)
 {
     driftFactor = base.mass * M_C / (base.charge * base.B * base.time);
-    frequencyFactor = base.charge * base.B / (base.mass * M_C);
+    frequencyFactor = base.time * base.charge * base.B / (base.mass * M_C);
 }
 
 // Does nothing
@@ -34,49 +38,67 @@ vec DriftMeasureDevice::EField(const vec& r, const double t) const { return vec(
 vec DriftMeasureDevice::BField(const vec& r, const double t) const { return vec(); }
 
 
-// Helper methods
+// Helper methods -------------------------------------------------------
 double DriftMeasureDevice::Kparallel() const
 {
     return pCharge->getMass() * pCharge->getVel().project(B).norm2() / 2.0;
 }
+
+double DriftMeasureDevice::gyroRadius() const
+{
+    vec v = pCharge->getVel();
+    return (v - v.project(B)).norm() / std::abs(gyroFrequency());
+}
+
 vec DriftMeasureDevice::expectedDriftVel() const
 {
     //revisar
-    vec b = B.normalized();
-    return driftFactor * (pCharge->K() + Kparallel()) / (pCharge->getCharge() * std::pow(B.norm(), 3)) * cross(b, gradB);
+    vec Bdrift = driftFactor * (pCharge->K() + Kparallel()) / (pCharge->getCharge() * std::pow(B.norm(), 3)) * cross(B, gradB);
+    vec polDrift = cross(E, B) / (B.norm() * B.norm());
+    return  Bdrift + polDrift;
 }
+
+
 
 // Drift calculation
 void DriftMeasureDevice::move(const double dt)
 {
-    vec vel = pCharge->getVel();
-    // Calcular extensión máxima en z (transiente) previo
-    // Después integrar entre fracción de extensión (~5 oscilaciones)
-
-    // If integrating, drifts
-    if (integrating)
+    // If not integrating, quits
+    if (!integrating)
     {
-        // Get angle change from change in v (tangent to path)
-        vec tprev = velTrail.front().normalized();
-        vec t = vel.normalized();
-        // a dot b = |a||b|cos theta
-        relativeAngle += std::acos(tprev * t);
-
-        // Loop
-        looped = relativeAngle > 2 * M_PI;
-        if (looped)
-        {
-            relativeAngle -= 2*M_PI;
-            loops++;
-        }
-
-        // Calculate drifts:
-        totalExpectedDrift += expectedDriftVel() * dt;
-        totalDrift += vel * dt;
+        posTrail.push(pCharge->getPos());
+        velTrail.push(pCharge->getVel());
+        return;
     }
 
-    // Extend trails
-    posTrail.push(pCharge->getPos());
+    vec pos = pCharge->getPos();
+    vec vel = pCharge->getVel();
+
+    // Get angle change from change in v (tangent to path)
+    vec tprev = velTrail.front().normalized();
+    vec t = vel.normalized();
+    // a dot b = |a||b|cos theta
+    relativeAngle += std::acos(tprev * t);
+
+    // Loop
+    looped = relativeAngle > 2 * M_PI;
+    if (looped)
+    {
+        relativeAngle -= 2*M_PI;
+        loops++;
+    }
+
+    // Valid if horizon crossed
+    if (pos.z * posTrail.front().z <= 0.0)
+        valid = true;
+
+    // Calculate drifts:
+    totalTime += dt;
+    totalExpectedDrift += expectedDriftVel() * dt;
+    totalDrift += vel * dt;
+    totalEpsilon += epsilon();
+
+    posTrail.push(pos);
     velTrail.push(vel);
 }
 
@@ -104,18 +126,38 @@ double DriftMeasureDevice::getExpectedDrift() const
     return totalExpectedDrift.norm();
 }
 
+double DriftMeasureDevice::getMeanEpsilon() const
+{
+    return totalEpsilon / totalTime;
+}
+
+
 bool DriftMeasureDevice::hasLooped() const
 {
     return looped;
 }
 
+bool DriftMeasureDevice::isValid() const
+{
+    return valid;
+}
 
-// Signals
+// r / L
+double DriftMeasureDevice::epsilon() const
+{
+    return gyroRadius() / L;
+}
+
+
+// Signals --------------------------------------------
 void DriftMeasureDevice::startIntegrating()
 {
     integrating = true;
+    valid = false;
 
     // Reset
+    totalTime = 0.0;
+    totalEpsilon = 0.0;
     totalDrift = vec();
     totalExpectedDrift = vec();
     relativeAngle = 0.0;
